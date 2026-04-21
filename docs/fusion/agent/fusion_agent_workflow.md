@@ -14,7 +14,7 @@
 8. 执行参数优化；
 9. 选择最终参数并复核结果。
 
-> [截图占位：fusion_agent_workflow_01 智策工作流总览]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/42.png)
 
 ## 从策略想法开始
 
@@ -27,7 +27,7 @@
 
 输入越清晰，后续得到的逻辑说明通常越容易复核和讨论。
 
-> [截图占位：fusion_agent_workflow_02 新建任务窗口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/43.png)
 
 ## 生成并确认策略逻辑
 
@@ -43,7 +43,9 @@
 
 如果逻辑说明本身就不清楚，那么后面生成的代码和回测结果也很难可靠。
 
-> [截图占位：fusion_agent_workflow_03 逻辑说明页面]
+请注意，填写的策略类名不要和示例策略类名或已存在任务的策略类名重合，命名以“Strategy”结尾。
+
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/44.png)
 
 ## 生成策略代码
 
@@ -56,7 +58,7 @@
 - 是否包含明显与原始逻辑不一致的部分；
 - 命名是否清晰，便于后续维护与复核。
 
-> [截图占位：fusion_agent_workflow_04 代码生成页面]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/51.png)
 
 ## 执行代码检查
 
@@ -70,7 +72,7 @@
 
 即便检查通过，也不意味着代码已经可以直接实盘使用。
 
-> [截图占位：fusion_agent_workflow_05 代码检查结果]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/50.png)
 
 ## 执行回测
 
@@ -83,7 +85,7 @@
 - 收益、回撤、交易次数等指标是否与策略逻辑匹配；
 - 是否存在“能运行，但结果明显不合理”的情况。
 
-> [截图占位：fusion_agent_workflow_06 回测结果页面]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/47.png)
 
 ## 规划优化参数
 
@@ -95,7 +97,7 @@
 
 这一步有助于避免用户在没有明确目标时盲目做大范围搜索。
 
-> [截图占位：fusion_agent_workflow_07 参数优化规划]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/48.png)
 
 ## 执行参数优化
 
@@ -107,11 +109,11 @@
 - 不要把历史样本中的最佳结果直接当作实盘参数；
 - 若优化结果与原有逻辑明显冲突，应优先重新审视策略本身。
 
-> [截图占位：fusion_agent_workflow_08 参数优化结果]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/49.png)
 
 ## 选择最终参数
 
-当优化完成后，用户需要在结果中做出判断，决定后续保留哪组参数，或是否回到前面步骤重新调整逻辑和代码。
+当优化完成后，用户可以基于结果做出判断，决定后续保留哪组参数。
 
 在这个阶段，建议结合以下信息综合判断：
 
@@ -122,7 +124,9 @@
 
 如果某组参数虽然历史表现最好，但解释困难、稳定性差或过于依赖样本区间，那么通常不应直接作为最终选择。
 
-> [截图占位：fusion_agent_workflow_09 参数选择与结果总览]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/52.png)
+
+参数优化任务完成后，工作流会将最终优化参数写回策略的默认值，更新完整策略代码。重新执行回测，更新结果到【回测结果】页面。用户可以通过点击【策略代码】页面的【打开策略文件】按钮访问策略代码并自行保存或调整。
 
 ## 结果复核与后续处理
 

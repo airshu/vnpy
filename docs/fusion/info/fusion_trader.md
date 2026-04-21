@@ -12,7 +12,7 @@ Fusion 主界面通常由以下部分组成：
 
 不同用户可能会根据自己的习惯调整窗口布局，但整体功能入口是一致的。
 
-> [截图占位：fusion_trader_01 主界面总览]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/11.png)
 
 ## 系统菜单
 
@@ -25,7 +25,7 @@ Fusion 主界面通常由以下部分组成：
 
 在完成登录后，通常应先通过系统菜单连接交易账户，再进行后续操作。
 
-> [截图占位：fusion_trader_02 系统菜单]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/12.png)
 
 ## 功能菜单
 
@@ -34,11 +34,11 @@ Fusion 主界面通常由以下部分组成：
 - `CTA策略`
 - `CTA回测`
 - `数据管理`
-- `风控管理`
+- `交易风控`
 
 这些模块构成了 Fusion 的主要量化工作流：先连接交易，再进行策略运行、回测验证、历史数据管理和风控设置。
 
-> [截图占位：fusion_trader_03 功能菜单]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/13.png)
 
 ## 智策菜单
 
@@ -50,21 +50,21 @@ Fusion 主界面通常由以下部分组成：
 
 如果你希望借助 AI 辅助整理策略思路、生成代码、执行检查或衔接回测优化流程，可以从这里开始。
 
-> [截图占位：fusion_trader_04 智策菜单]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/14.png)
 
 ## 帮助菜单
 
 `【帮助】` 菜单主要提供以下辅助能力：
 
 - 查询合约；
-- 还原窗口布局；
+- 还原窗口；
 - 测试邮件；
-- 打开社区论坛；
-- 查看关于信息。
+- 社区论坛；
+- 关于。
 
 其中，对大部分用户最常用的是 `【帮助】->【查询合约】`，可用于确认合约代码和交易所信息。
 
-> [截图占位：fusion_trader_05 帮助菜单]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/15.png)
 
 ## 常用窗口组件
 
@@ -81,7 +81,7 @@ Fusion 主界面通常由以下部分组成：
 
 初次使用时，建议优先关注 `日志`、`交易`、`委托` 和 `成交` 四个组件，这些组件最能帮助你理解软件当前是否处于正常工作状态。
 
-> [截图占位：fusion_trader_06 常用组件区域]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/16.png)
 
 ## 退出软件
 

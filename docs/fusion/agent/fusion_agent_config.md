@@ -13,9 +13,9 @@
 
 该配置页面通常用于管理智策所依赖的 AI 服务连接信息。实际可见字段会根据当前接入方式有所不同，因此建议以界面实际内容和所属机构提供的说明为准。
 
-> [截图占位：fusion_agent_config_01 AI服务配置入口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/34.png)
 
-> [截图占位：fusion_agent_config_02 AI服务配置窗口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/41.png)
 
 完成配置后，建议再次检查输入内容是否准确，避免因为地址、密钥、网络或权限设置问题影响后续使用。
 
@@ -29,9 +29,9 @@
 - 了解模型名称与可选范围；
 - 为后续新建智策任务时选择合适模型提供参考。
 
-> [截图占位：fusion_agent_config_03 模型浏览器入口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/35.png)
 
-> [截图占位：fusion_agent_config_04 模型浏览器窗口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/33.png)
 
 ## 常见配置说明
 

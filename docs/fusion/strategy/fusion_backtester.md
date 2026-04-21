@@ -27,9 +27,9 @@
 
 这些参数会直接影响回测结果，因此应尽量按照真实交易环境填写，而不是随意估算。
 
-> [截图占位：fusion_backtester_01 回测模块界面]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/23.png)
 
-> [截图占位：fusion_backtester_02 回测参数设置]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/24.png)
 
 ## 查看回测结果
 
@@ -48,7 +48,7 @@
 - 收益是否集中在少量行情阶段；
 - 结果是否与策略逻辑本身相一致。
 
-> [截图占位：fusion_backtester_03 回测结果总览]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/54.png)
 
 ## 参数优化入门
 
@@ -64,9 +64,9 @@
 - 控制参数区间和步长，避免组合数量过大；
 - 不要把“最佳结果”直接等同于“最适合实盘”的参数。
 
-> [截图占位：fusion_backtester_04 参数优化设置]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/25.png)
 
-> [截图占位：fusion_backtester_05 参数优化结果]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/53.png)
 
 ## 如何理解回测结果
 
