@@ -24,9 +24,11 @@
 - 合约代码和交易所信息准确；
 - 数据周期与后续使用场景一致。
 
-> [截图占位：fusion_data_01 数据管理模块界面]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/29.png)
 
-> [截图占位：fusion_data_02 导入数据窗口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/30.png)
+
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/31.png)
 
 ## 查看与导出数据
 
@@ -38,7 +40,7 @@
 
 在开始回测前，先用查看功能确认目标合约和目标区间的数据是否存在，往往能减少很多无效排查。
 
-> [截图占位：fusion_data_03 查看数据界面]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/32.png)
 
 ## 为回测做准备
 

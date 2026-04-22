@@ -50,6 +50,8 @@
 
 对于入门用户来说，建议把智策与 [CTA策略](../strategy/fusion_cta.md)、[回测与优化](../strategy/fusion_backtester.md) 结合起来使用，而不是把智策单独当作完整交易系统。
 
+在投研过程中，【智策投研】可以负责执行量化策略研究任务，【智策助手】可以负责回答VeighNa、CTA策略开发和当前任务相关的问题。
+
 ## 从哪里开始
 
 在 Fusion 主界面中，可通过 `【智策】` 菜单进入以下入口：
@@ -60,6 +62,8 @@
 
 首次使用时，建议先阅读 [智策配置](fusion_agent_config.md)，再进入 [智策工作流](fusion_agent_workflow.md) 了解完整流程。
 
-> [截图占位：fusion_agent_intro_01 智策菜单入口]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/26.png)
 
-> [截图占位：fusion_agent_intro_02 智策工作台欢迎页]
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/36.png)
+
+![](https://vnpy-doc.oss-cn-shanghai.aliyuncs.com/fusion/45.png)
