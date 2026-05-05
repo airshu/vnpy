@@ -4,8 +4,8 @@ import traceback
 from abc import ABC, abstractmethod
 from email.message import EmailMessage
 from queue import Empty, Queue
-from threading import Thread
-from typing import TypeVar
+from threading import Thread, current_thread
+from typing import Any, TypeVar
 from collections.abc import Callable
 
 from vnpy.event import Event, EventEngine
@@ -39,10 +39,16 @@ from .object import (
     Exchange
 )
 from .setting import SETTINGS
-from .utility import TRADER_DIR
+from .utility import TRADER_DIR, load_json, save_json
 from .converter import OffsetConverter
 from .logger import logger, DEBUG, INFO, WARNING, ERROR, CRITICAL
 from .locale import _
+from .wechat import (
+    Credentials,
+    SessionExpired,
+    WeixinError,
+    send_text,
+)
 
 
 EngineType = TypeVar("EngineType", bound="BaseEngine")
@@ -156,6 +162,8 @@ class MainEngine:
 
         email_engine: EmailEngine = self.add_engine(EmailEngine)
         self.send_email: Callable[[str, str, str | None], None] = email_engine.send_email
+
+        self.add_engine(WechatEngine)
 
     def write_log(self, msg: str, source: str = "MainEngine") -> None:
         """
@@ -576,7 +584,7 @@ class EmailEngine(BaseEngine):
         super().__init__(main_engine, event_engine, "email")
 
         self.thread: Thread = Thread(target=self.run)
-        self.queue: Queue = Queue()
+        self.queue: Queue[EmailMessage] = Queue()
         self.active: bool = False
 
     def send_email(self, subject: str, content: str, receiver: str | None = None) -> None:
@@ -631,3 +639,171 @@ class EmailEngine(BaseEngine):
 
         self.active = False
         self.thread.join()
+
+
+class WechatEngine(BaseEngine):
+    """
+    Provides WeChat push notification function for log events.
+    """
+
+    setting_filename: str = "wechat_setting.json"
+
+    def __init__(self, main_engine: MainEngine, event_engine: EventEngine) -> None:
+        """"""
+        super().__init__(main_engine, event_engine, "wechat")
+
+        self.keyword: str = "$"
+
+        self.creds: Credentials | None = None
+        self.user_id: str = ""
+
+        self.queue: Queue[str] = Queue()
+        self.thread: Thread | None = None
+        self.active: bool = False
+
+        self.load_setting()
+
+        if self.creds and self.user_id:
+            self.activate()
+
+    def load_setting(self) -> None:
+        """Load keyword, credentials and user info from json file."""
+        data: dict[str, Any] = load_json(self.setting_filename)
+
+        self.keyword = str(data.get("keyword") or "$")
+
+        bot_id: str = data.get("bot_id") or ""
+        token: str = data.get("token") or ""
+        if bot_id and token:
+            base_url: str = data.get("base_url") or "https://ilinkai.weixin.qq.com"
+            self.creds = Credentials(
+                bot_id=bot_id,
+                token=token,
+                base_url=base_url,
+            )
+        else:
+            self.creds = None
+
+        self.user_id = str(data.get("user_id") or data.get("chat_id") or "")
+
+    def save_setting(self) -> None:
+        """Persist current state back to json file."""
+        data: dict[str, str] = {"keyword": self.keyword}
+
+        if self.creds:
+            data["bot_id"] = self.creds.bot_id
+            data["token"] = self.creds.token
+            data["base_url"] = self.creds.base_url
+
+        if self.user_id:
+            data["user_id"] = self.user_id
+
+        save_json(self.setting_filename, data)
+
+    def bind(self, creds: Credentials, user_id: str) -> None:
+        """
+        Complete binding with QR-code credentials and user ID.
+        """
+        self.deactivate()
+
+        self.creds = creds
+        self.user_id = user_id
+
+        self.save_setting()
+        self.activate()
+
+    def unbind(self) -> None:
+        """Clear credentials and stop pushing."""
+        self.deactivate()
+
+        self.creds = None
+        self.user_id = ""
+
+        self.save_setting()
+
+    def activate(self) -> None:
+        """Register EVENT_LOG handler and start worker thread."""
+        self.event_engine.register(EVENT_LOG, self.process_log_event)
+        self.start()
+
+    def deactivate(self) -> None:
+        """Unregister handler, stop worker thread and clear pending queue."""
+        self.event_engine.unregister(EVENT_LOG, self.process_log_event)
+        self.stop()
+
+    def start(self) -> None:
+        """Start WeChat sending worker."""
+        if self.active:
+            return
+
+        self.active = True
+        self.thread = Thread(target=self.run)
+        self.thread.start()
+
+    def stop(self) -> None:
+        """Stop WeChat sending worker."""
+        if not self.active:
+            return
+
+        self.active = False
+
+        if (
+            self.thread
+            and self.thread.is_alive()
+            and self.thread is not current_thread()
+        ):
+            self.thread.join()
+
+    def process_log_event(self, event: Event) -> None:
+        """Filter logs containing the keyword and queue them for sending."""
+        log: LogData = event.data
+
+        # Skip self-emitted logs to avoid notification loop
+        if log.gateway_name == self.engine_name:
+            return
+
+        if self.keyword and self.keyword not in log.msg:
+            return
+
+        self.queue.put(log.msg)
+
+    def run(self) -> None:
+        """Send queued WeChat messages in worker thread."""
+        while self.active:
+            try:
+                msg: str = self.queue.get(block=True, timeout=1)
+            except Empty:
+                continue
+
+            msgs: list[str] = [msg]
+            while True:
+                try:
+                    msgs.append(self.queue.get_nowait())
+                except Empty:
+                    break
+
+            if not self.creds or not self.user_id:
+                continue
+
+            try:
+                send_text(
+                    self.creds,
+                    self.user_id,
+                    "\n".join(msgs),
+                )
+            except SessionExpired:
+                self.active = False
+                self.event_engine.unregister(EVENT_LOG, self.process_log_event)
+                self.main_engine.write_log(
+                    _("微信会话已过期，请通过菜单重新扫码绑定"),
+                    self.engine_name,
+                )
+            except WeixinError as exc:
+                self.main_engine.write_log(
+                    _("微信推送失败：{}").format(exc),
+                    self.engine_name,
+                )
+
+    def close(self) -> None:
+        """"""
+        self.deactivate()
