@@ -12,6 +12,8 @@ from typing import Any
 
 import requests
 
+from .locale import _
+
 
 # Default WeChat iLink gateway URL
 DEFAULT_BASE_URL: str = "https://ilinkai.weixin.qq.com"
@@ -134,7 +136,7 @@ def request_qrcode() -> tuple[str, str]:
 
     qrcode: str = str(qr_data.get("qrcode") or "").strip()
     if not qrcode:
-        raise WeixinError("二维码响应缺少 qrcode")
+        raise WeixinError(_("二维码响应缺少 qrcode"))
 
     scan_url: str = str(qr_data.get("qrcode_img_content") or "").strip() or qrcode
     return qrcode, scan_url
@@ -172,7 +174,7 @@ def wait_for_login(
                     base_url=str(status_data.get("baseurl") or current_url),
                 )
                 if not creds.bot_id or not creds.token:
-                    raise WeixinError("扫码确认响应缺少凭据")
+                    raise WeixinError(_("扫码确认响应缺少凭据"))
                 return creds
 
             if status == "scaned_but_redirect":
@@ -213,9 +215,9 @@ def _post(
             timeout=timeout,
         )
     except requests.exceptions.Timeout as exc:
-        raise WeixinTimeout(f"HTTP 请求超时: {exc}") from exc
+        raise WeixinTimeout(_("HTTP 请求超时: {}").format(exc)) from exc
     except requests.RequestException as exc:
-        raise WeixinError(f"HTTP 请求失败: {exc}") from exc
+        raise WeixinError(_("HTTP 请求失败: {}").format(exc)) from exc
 
     return _parse(response)
 
@@ -242,9 +244,9 @@ def _get(
             timeout=timeout,
         )
     except requests.exceptions.Timeout as exc:
-        raise WeixinTimeout(f"HTTP 请求超时: {exc}") from exc
+        raise WeixinTimeout(_("HTTP 请求超时: {}").format(exc)) from exc
     except requests.RequestException as exc:
-        raise WeixinError(f"HTTP 请求失败: {exc}") from exc
+        raise WeixinError(_("HTTP 请求失败: {}").format(exc)) from exc
 
     return _parse(response)
 
@@ -257,20 +259,24 @@ def _parse(response: requests.Response) -> dict[str, Any]:
     try:
         data: Any = response.json()
     except ValueError as exc:
-        raise WeixinError(f"非 JSON 响应: {response.text[:200]}") from exc
+        raise WeixinError(_("非 JSON 响应: {}").format(response.text[:200])) from exc
 
     if not isinstance(data, dict):
-        raise WeixinError(f"响应不是 JSON 对象: {response.text[:200]}")
+        raise WeixinError(_("响应不是 JSON 对象: {}").format(response.text[:200]))
 
     ret: Any = data.get("ret") or 0
     err: Any = data.get("errcode") or 0
 
     # -14 is the iLink error code for expired session.
     if ret == -14 or err == -14:
-        raise SessionExpired(str(data.get("errmsg") or "iLink 会话已过期"))
+        raise SessionExpired(str(data.get("errmsg") or _("iLink 会话已过期")))
     if ret or err:
         raise WeixinError(
-            f"iLink 错误 ret={ret} errcode={err} errmsg={data.get('errmsg')}",
+            _("iLink 错误 ret={} errcode={} errmsg={}").format(
+                ret,
+                err,
+                data.get("errmsg"),
+            ),
         )
 
     return data
