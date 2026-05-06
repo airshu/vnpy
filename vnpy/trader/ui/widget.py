@@ -1420,21 +1420,6 @@ class WechatDialog(QtWidgets.QDialog):
         """Create the status page."""
         page: QtWidgets.QWidget = QtWidgets.QWidget()
 
-        # Keyword settings
-        group_keyword: QtWidgets.QGroupBox = QtWidgets.QGroupBox(_("推送设置"))
-        self.keyword_line: QtWidgets.QLineEdit = QtWidgets.QLineEdit(self.wechat_engine.keyword)
-        self.keyword_line.setPlaceholderText(_("留空则推送所有日志"))
-        self.save_keyword_button: QtWidgets.QPushButton = QtWidgets.QPushButton(_("保存设置"))
-        self.save_keyword_button.clicked.connect(self.save_keyword)
-
-        keyword_layout: QtWidgets.QHBoxLayout = QtWidgets.QHBoxLayout()
-        keyword_layout.addWidget(self.keyword_line)
-        keyword_layout.addWidget(self.save_keyword_button)
-
-        form: QtWidgets.QFormLayout = QtWidgets.QFormLayout()
-        form.addRow(_("推送关键词"), keyword_layout)
-        group_keyword.setLayout(form)
-
         # Status area
         group_status: QtWidgets.QGroupBox = QtWidgets.QGroupBox(_("账号状态"))
         self.status_label: QtWidgets.QLabel = QtWidgets.QLabel()
@@ -1482,7 +1467,6 @@ class WechatDialog(QtWidgets.QDialog):
         group_status.setLayout(status_layout)
 
         layout: QtWidgets.QVBoxLayout = QtWidgets.QVBoxLayout()
-        layout.addWidget(group_keyword)
         layout.addWidget(group_status)
         page.setLayout(layout)
 
@@ -1598,20 +1582,9 @@ class WechatDialog(QtWidgets.QDialog):
 
         self.stack.setCurrentWidget(self.page_status)
 
-    def save_keyword(self) -> None:
-        """Save log filter keyword immediately."""
-        self.wechat_engine.keyword = self.keyword_line.text()
-        self.wechat_engine.save_setting()
-        QtWidgets.QMessageBox.information(
-            self,
-            _("保存成功"),
-            _("微信通知设置已保存"),
-            QtWidgets.QMessageBox.StandardButton.Ok
-        )
-
     def send_test_message(self) -> None:
         """Send a test message via WeChat engine."""
-        self.wechat_engine.queue.put(_("VeighNa Trader 消息推送测试"))
+        self.wechat_engine.send_wechat(_("VeighNa Trader 消息推送测试"))
         QtWidgets.QMessageBox.information(
             self,
             _("测试消息"),

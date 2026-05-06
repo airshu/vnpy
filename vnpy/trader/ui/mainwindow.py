@@ -6,7 +6,7 @@ from types import ModuleType
 import webbrowser
 from functools import partial
 from importlib import import_module
-from typing import TypeVar
+from typing import TypeVar, cast
 from collections.abc import Callable
 
 import vnpy
@@ -29,7 +29,7 @@ from .widget import (
     GlobalDialog,
     WechatDialog
 )
-from ..engine import MainEngine, BaseApp
+from ..engine import MainEngine, BaseApp, EmailEngine
 from ..utility import get_icon_path, TRADER_DIR
 from ..locale import _
 
@@ -325,7 +325,8 @@ class MainWindow(QtWidgets.QMainWindow):
         """
         Sending a test email.
         """
-        self.main_engine.send_email("VeighNa Trader", "testing", None)
+        email_engine: EmailEngine = cast(EmailEngine, self.main_engine.get_engine("email"))
+        email_engine.send_email("VeighNa Trader", "testing")
 
     def open_forum(self) -> None:
         """
