@@ -1443,9 +1443,35 @@ class WechatDialog(QtWidgets.QDialog):
         self.gateway_label.setTextInteractionFlags(QtCore.Qt.TextInteractionFlag.TextSelectableByMouse)
         self.gateway_label.setWordWrap(True)
 
+        self.interval_spin: QtWidgets.QSpinBox = QtWidgets.QSpinBox()
+        self.interval_spin.setRange(1, 8640)
+        interval_tip: str = _(
+            "控制两次微信推送之间的最小间隔。\n"
+            "两次发送之间收到的新消息会暂存并在下一次发送时合并为一条，"
+            "从而降低短时间内触达发送阈值的风险。"
+        )
+        self.interval_spin.setSuffix(_(" 秒"))
+        self.interval_spin.setToolTip(interval_tip)
+        self.interval_spin.valueChanged.connect(self._on_interval_changed)
+
+        self.quota_hint: QtWidgets.QLabel = QtWidgets.QLabel(
+            _("用户每发1条消息，bot 可推送 10 条（24 小时内）。\n超限后需用户再发消息才能恢复。")
+        )
+        self.quota_hint.setWordWrap(True)
+        small_font: QtGui.QFont = QtGui.QFont(self.font())
+        if (base_pt := small_font.pointSize()) > 0:
+            small_font.setPointSize(max(8, base_pt - 2))
+        self.quota_hint.setFont(small_font)
+        self.quota_hint.setStyleSheet("color: palette(mid);")
+        self.quota_hint.setAlignment(
+            QtCore.Qt.AlignmentFlag.AlignHCenter | QtCore.Qt.AlignmentFlag.AlignTop,
+        )
+
+        self.interval_spin.setValue(self.wechat_engine.send_message_interval)
         self.info_form.addRow("Bot ID：", self.bot_id_label)
         self.info_form.addRow(_("用户 ID："), self.user_id_label)
         self.info_form.addRow(_("网关："), self.gateway_label)
+        self.info_form.addRow(_("发送间隔："), self.interval_spin)
 
         self.bind_button: QtWidgets.QPushButton = QtWidgets.QPushButton(_("开始绑定"))
         self.bind_button.clicked.connect(self.start_bind)
@@ -1464,6 +1490,7 @@ class WechatDialog(QtWidgets.QDialog):
         status_layout.addWidget(self.bind_button)
         status_layout.addWidget(self.test_button)
         status_layout.addWidget(self.unbind_button)
+        status_layout.addWidget(self.quota_hint)
         group_status.setLayout(status_layout)
 
         layout: QtWidgets.QVBoxLayout = QtWidgets.QVBoxLayout()
@@ -1580,6 +1607,9 @@ class WechatDialog(QtWidgets.QDialog):
             self.test_button.hide()
             self.unbind_button.setEnabled(False)
 
+        with QtCore.QSignalBlocker(self.interval_spin):
+            self.interval_spin.setValue(self.wechat_engine.send_message_interval)
+
         self.stack.setCurrentWidget(self.page_status)
 
     def send_test_message(self) -> None:
@@ -1673,6 +1703,11 @@ class WechatDialog(QtWidgets.QDialog):
         if reply == QtWidgets.QMessageBox.StandardButton.Yes:
             self.wechat_engine.unbind()
             self.refresh_status()
+
+    def _on_interval_changed(self, value: int) -> None:
+        """Persist send interval updates from the status page."""
+        self.wechat_engine.send_message_interval = value
+        self.wechat_engine.save_setting()
 
     def closeEvent(self, event: QtGui.QCloseEvent) -> None:
         """Stop the binding worker before closing the dialog."""

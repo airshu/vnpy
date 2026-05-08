@@ -1,5 +1,6 @@
 import smtplib
 import os
+import time
 import traceback
 from abc import ABC, abstractmethod
 from datetime import datetime
@@ -667,6 +668,11 @@ class WechatEngine(BaseEngine):
         self.creds: Credentials | None = None
         self.user_id: str = ""
 
+        self.send_message_interval: int = 60
+        self.last_send_ts: float | None = None
+
+        self.pending_messages: list[str] = []
+
         self.queue: Queue[str] = Queue()
         self.thread: Thread | None = None
         self.active: bool = False
@@ -694,9 +700,13 @@ class WechatEngine(BaseEngine):
 
         self.user_id = str(data.get("user_id") or data.get("chat_id") or "")
 
+        send_interval_raw: int | None = data.get("send_interval")
+        if send_interval_raw:
+            self.send_message_interval = send_interval_raw
+
     def save_setting(self) -> None:
         """Persist current state back to json file."""
-        data: dict[str, str] = {}
+        data: dict[str, Any] = {}
 
         if self.creds:
             data["bot_id"] = self.creds.bot_id
@@ -705,6 +715,8 @@ class WechatEngine(BaseEngine):
 
         if self.user_id:
             data["user_id"] = self.user_id
+
+        data["send_interval"] = self.send_message_interval
 
         save_json(self.setting_filename, data)
 
@@ -726,6 +738,7 @@ class WechatEngine(BaseEngine):
 
         self.creds = None
         self.user_id = ""
+        self.pending_messages.clear()
 
         self.save_setting()
 
@@ -775,7 +788,9 @@ class WechatEngine(BaseEngine):
             except Empty:
                 continue
 
-            msgs: list[str] = [msg]
+            msgs: list[str] = list(self.pending_messages)
+            self.pending_messages.clear()
+            msgs.append(msg)
             while True:
                 try:
                     msgs.append(self.queue.get_nowait())
@@ -783,21 +798,32 @@ class WechatEngine(BaseEngine):
                     break
 
             if not self.creds or not self.user_id:
+                self.pending_messages.extend(msgs)
                 continue
 
             try:
+                gap: float = self.send_message_interval
+                if gap > 0:
+                    prior: float | None = self.last_send_ts
+                    if prior is not None:
+                        wait_secs: float = prior + gap - time.monotonic()
+                        if wait_secs > 0:
+                            time.sleep(wait_secs)
                 send_text(
                     self.creds,
                     self.user_id,
                     "\n".join(msgs),
                 )
+                self.last_send_ts = time.monotonic()
             except SessionExpired:
+                self.pending_messages.extend(msgs)
                 self.active = False
                 self.main_engine.write_log(
                     _("微信会话已过期，请通过菜单重新扫码绑定"),
                     self.engine_name,
                 )
             except WeixinError as exc:
+                self.pending_messages.extend(msgs)
                 self.main_engine.write_log(
                     _("微信推送失败：{}").format(exc),
                     self.engine_name,
