@@ -2,8 +2,18 @@ from datetime import datetime
 from enum import Enum
 from numbers import Real
 from typing import Union, cast
+from collections.abc import Callable
 
 import polars as pl
+
+
+EXPRESSION_FUNCTIONS: dict[str, Callable] = {}
+
+
+def register_functions(functions: list[Callable]) -> None:
+    """Register custom expression functions by function name."""
+    for func in functions:
+        EXPRESSION_FUNCTIONS[func.__name__] = func
 
 
 class DataProxy:
@@ -227,6 +237,7 @@ def calculate_by_expression(df: pl.DataFrame, expression: str) -> pl.DataFrame:
 
     # Extract feature objects to local space
     d: dict = locals()
+    d.update(EXPRESSION_FUNCTIONS)
 
     for column in df.columns:
         # Filter index columns
