@@ -149,17 +149,30 @@ class Datafeed(BaseDatafeed):
 
     # ── 期货 (新浪) ─────────────────────────────────────────
 
+    # 新浪主力连续合约映射: vnpy 888 → sina 0
+    # 例: I888.DCE → I0, RB888.SHFE → RB0
+    _CONTINUOUS_SUFFIX = "888"
+
     def _query_sina_futures(
         self, symbol: str, exchange: Exchange,
         interval: Interval, start: datetime, end: datetime,
         output: Callable,
     ) -> list[BarData]:
-        """通过新浪 futures_zh_daily_sina 获取期货日线。"""
-        output(f"新浪期货 {symbol} {interval.value}...")
+        """通过新浪 futures 接口获取期货日线。支持主力连续合约。"""
+        # 主力连续合约: RB888 → RB0 (新浪约定)
+        if symbol.endswith(self._CONTINUOUS_SUFFIX):
+            base = symbol[:-len(self._CONTINUOUS_SUFFIX)]
+            sina_symbol = f"{base}0"
+            func = ak.futures_main_sina
+        else:
+            sina_symbol = symbol
+            func = ak.futures_zh_daily_sina
+
+        output(f"新浪期货 {symbol} ({sina_symbol}) {interval.value}...")
 
         df: pd.DataFrame = self._call_with_timeout(
-            ak.futures_zh_daily_sina,
-            symbol=symbol,
+            func,
+            symbol=sina_symbol,
             _output=output,
         )
 
