@@ -1,0 +1,16 @@
+[project]
+name = "vnpy_akshare"
+dynamic = ["version"]
+description = "VeighNa datafeed adapter for AKShare (free financial data)"
+requires-python = ">=3.10"
+dependencies = [
+    "akshare>=1.14",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "vnpy_akshare/__init__.py"
+pattern = "__version__ = ['\"](?P<version>[^'\"]+)['\"]"
