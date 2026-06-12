@@ -22,6 +22,7 @@ dist
 
 # VeighNa
 .vntrader
+database.db
 
 # Visual Studio intermediate files
 *.exp
