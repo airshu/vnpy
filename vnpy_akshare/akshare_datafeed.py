@@ -1,13 +1,13 @@
 """
-AKShare datafeed plugin for VeighNa.
+AKShare datafeed plugin for VeighNa (Sina API edition).
 
-Provides historical bar data for Chinese stocks, futures, and indices
-via the free AKShare library.
+通过新浪接口免费获取 A 股 / 期货 / 指数历史日线数据。
+无需 Token、无频率限制。
 
-Usage:
+用法:
     1. pip install akshare
-    2. Set datafeed.name = "akshare" in vt_setting.json
-    3. No username/password required
+    2. datafeed.name = "akshare" in vt_setting.json
+    3. 无需 username / password
 """
 
 import time
@@ -22,273 +22,180 @@ from vnpy.trader.setting import SETTINGS
 from vnpy.trader.datafeed import BaseDatafeed
 from vnpy.trader.object import BarData, HistoryRequest, TickData
 from vnpy.trader.constant import Exchange, Interval
-from vnpy.trader.utility import round_to
 
-# ── Exchange → AKShare symbol mapping ────────────────────────────
-# Map vnpy Exchange enum to AKShare market prefix
-EXCHANGE_TO_AK = {
-    Exchange.SSE: "sh",       # 上海证券交易所
-    Exchange.SZSE: "sz",      # 深圳证券交易所
-    Exchange.CFFEX: "cffex",  # 中国金融期货交易所
-    Exchange.SHFE: "shfe",    # 上海期货交易所
-    Exchange.DCE: "dce",      # 大连商品交易所
-    Exchange.CZCE: "czce",    # 郑州商品交易所
-    Exchange.INE: "ine",      # 上海国际能源交易中心
-    Exchange.GFEX: "gfex",    # 广州期货交易所
+# ── Exchange → 新浪市场前缀 ─────────────────────────────────
+EXCHANGE_SINA_PREFIX = {
+    Exchange.SSE: "sh",  # 上海
+    Exchange.SZSE: "sz",  # 深圳
 }
 
-# Interval → AKShare period string
-INTERVAL_TO_AK = {
-    Interval.MINUTE: "1",     # 1分钟K线
-    Interval.HOUR: "60",      # 1小时K线
-    Interval.DAILY: "daily",  # 日K线
-    Interval.WEEKLY: "weekly", # 周K线
-    # Tick is not supported by AKShare historical API
-}
-
-# ── 时间范围限制（避免一次下载过多数据）────────────────────────
-MAX_DAYS_PER_REQUEST = 365 * 5  # 单次最多5年
+# ── 常量 ───────────────────────────────────────────────────
+MAX_DAYS = 365 * 5  # 单次最多 5 年
+SINA_SYMBOL_FMT = "{prefix}{code}"  # 新浪格式: sh600519
 
 
 class Datafeed(BaseDatafeed):
-    """AKShare datafeed implementation for VeighNa."""
+    """AKShare + 新浪数据源 (免费, 无需 Token)。"""
 
-    # ── 超时 & 重试配置 ────────────────────────────────────────
-    REQUEST_TIMEOUT: int = 45         # 单次请求最长等待秒数
-    MAX_RETRIES: int = 3              # 最多重试次数
-    RETRY_BACKOFF: float = 2.0        # 重试退避倍数（指数增长）
+    REQUEST_TIMEOUT: int = 60
+    MAX_RETRIES: int = 3
+    RETRY_BACKOFF: float = 2.0
 
     def __init__(self) -> None:
-        self.inited: bool = True                                   # 无需认证
+        self.inited: bool = True
         self._executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=1)
 
-    # ── 带超时的请求包装器 ─────────────────────────────────────
+    def init(self, output: Callable = print) -> bool:
+        output("AKShare 数据服务已就绪 (新浪数据源，免费无需Token)")
+        return True
+
+    # ── 带超时 & 重试 ────────────────────────────────────────
 
     def _call_with_timeout(self, func, *args, **kwargs) -> pd.DataFrame:
-        """
-        Execute an AKShare API call with timeout and retry.
-
-        AKShare底层调用东方财富API，网络不稳定时可能挂起无响应。
-        这里用线程池实现超时控制，并在失败后指数退避重试。
-        """
+        """线程池超时控制 + 指数退避重试。"""
         output: Callable = kwargs.pop("_output", print)
         last_err: Optional[Exception] = None
 
         for attempt in range(1, self.MAX_RETRIES + 1):
             future = self._executor.submit(func, *args, **kwargs)
             try:
-                df: pd.DataFrame = future.result(timeout=self.REQUEST_TIMEOUT)
-                return df  # 成功
+                return future.result(timeout=self.REQUEST_TIMEOUT)
             except FutureTimeout:
                 future.cancel()
-                last_err = TimeoutError(
-                    f"请求超时（>{self.REQUEST_TIMEOUT}s），第{attempt}次尝试失败"
-                )
+                last_err = TimeoutError(f"请求超时 (>{self.REQUEST_TIMEOUT}s), 第{attempt}次")
                 output(f"[AKShare] {last_err}")
             except Exception as e:
                 last_err = e
-                output(f"[AKShare] 请求异常（第{attempt}次）: {e}")
+                output(f"[AKShare] 请求异常 (第{attempt}次): {e}")
 
             if attempt < self.MAX_RETRIES:
                 wait = self.RETRY_BACKOFF ** attempt
                 output(f"[AKShare] {wait:.0f}秒后重试...")
                 time.sleep(wait)
 
-        raise RuntimeError(
-            f"AKShare请求失败（已重试{self.MAX_RETRIES}次）: {last_err}"
-        )
+        raise RuntimeError(f"请求失败 (已重试{self.MAX_RETRIES}次): {last_err}")
 
-    def init(self, output: Callable = print) -> bool:
-        """Initialize AKShare datafeed (no auth required)."""
-        output("AKShare 数据服务已就绪（免费开源，无需Token）")
-        return True
-
-    # ── 主查询接口 ──────────────────────────────────────────────
+    # ── 主查询入口 ──────────────────────────────────────────
 
     def query_bar_history(self, req: HistoryRequest, output: Callable = print) -> list[BarData]:
-        """
-        Query historical K-line bar data from AKShare.
-
-        Supported:
-          - 股票（上证/深证）日线/周线
-          - 指数（上证指数/深证成指）日线
-          - 期货主力连续合约日线
-
-        Parameters:
-            req: HistoryRequest with symbol, exchange, interval, start, end.
-            output: Logging callback.
-
-        Returns:
-            List of BarData objects.
-        """
         exchange: Exchange = req.exchange
         symbol: str = req.symbol.upper()
         interval: Interval = req.interval
         start: datetime = req.start
         end: datetime = req.end or datetime.now()
 
-        # Limit date range to avoid huge downloads
-        if (end - start).days > MAX_DAYS_PER_REQUEST:
-            output(
-                f"查询时间跨度超过{MAX_DAYS_PER_REQUEST * 5}天，自动截断至最近{MAX_DAYS_PER_REQUEST * 5}天"
-            )
-            start = end - timedelta(days=MAX_DAYS_PER_REQUEST * 5)
+        # 仅支持日线/周线
+        if interval not in (Interval.DAILY, Interval.WEEKLY):
+            output("AKShare 仅支持日线(d)和周线(w)")
+            return []
+
+        # 限制时间跨度
+        if (end - start).days > MAX_DAYS:
+            output(f"时间跨度超过{MAX_DAYS}天, 自动截断")
+            start = end - timedelta(days=MAX_DAYS)
 
         try:
             if exchange in (Exchange.SSE, Exchange.SZSE):
-                bars = self._query_stock_bars(symbol, exchange, interval, start, end, output)
+                bars = self._query_sina_stock(symbol, exchange, interval, start, end, output)
             elif exchange in (
                 Exchange.CFFEX, Exchange.SHFE, Exchange.DCE,
                 Exchange.CZCE, Exchange.INE, Exchange.GFEX,
             ):
-                bars = self._query_futures_bars(symbol, exchange, interval, start, end, output)
+                bars = self._query_sina_futures(symbol, exchange, interval, start, end, output)
             else:
-                bars = self._query_stock_bars(symbol, exchange, interval, start, end, output)
+                bars = self._query_sina_stock(symbol, exchange, interval, start, end, output)
         except Exception as e:
-            output(f"AKShare查询K线数据失败：{e}")
+            output(f"查询失败: {e}")
             return []
 
         if not bars:
-            output(f"未查询到 {symbol}.{exchange.value} 的K线数据，请检查品种代码是否正确")
+            output(f"未查到 {symbol}.{exchange.value} 的数据")
         else:
-            output(f"成功获取 {symbol}.{exchange.value} K线数据，共 {len(bars)} 条")
+            output(f"成功: {symbol}.{exchange.value} K线 {len(bars)} 条")
 
         return bars
 
     def query_tick_history(self, req: HistoryRequest, output: Callable = print) -> list[TickData]:
-        """
-        AKShare does not provide historical tick data.
-        """
-        output("AKShare 暂不支持历史Tick数据查询")
+        output("AKShare 不支持 Tick 数据")
         return []
 
-    # ── 股票K线 ─────────────────────────────────────────────────
+    # ── 股票 / 指数 (新浪) ──────────────────────────────────
 
-    def _query_stock_bars(
-        self,
-        symbol: str,
-        exchange: Exchange,
-        interval: Interval,
-        start: datetime,
-        end: datetime,
+    def _query_sina_stock(
+        self, symbol: str, exchange: Exchange,
+        interval: Interval, start: datetime, end: datetime,
         output: Callable,
     ) -> list[BarData]:
-        """Query stock daily/weekly bars via AKShare."""
+        """通过新浪 stock_zh_a_daily 获取日线。"""
+        prefix = EXCHANGE_SINA_PREFIX.get(exchange, "sh")
+        sina_symbol = SINA_SYMBOL_FMT.format(prefix=prefix, code=symbol.lower())
 
-        period: str = INTERVAL_TO_AK.get(interval, "daily")
-        if interval not in (Interval.DAILY, Interval.WEEKLY):
-            output("AKShare 股票数据仅支持日线(d)和周线(w)，其他周期请升级tushare积分")
-            return []
+        start_date = start.strftime("%Y%m%d")
+        end_date = end.strftime("%Y%m%d")
 
-        # AKShare expects date strings like "20240101"
-        start_date: str = start.strftime("%Y%m%d")
-        end_date: str = end.strftime("%Y%m%d")
+        output(f"新浪获取 {sina_symbol} {interval.value} ({start_date}~{end_date})...")
 
-        output(f"正在从AKShare获取 {symbol} 的{period}K线数据 ({start_date} ~ {end_date})...")
+        df: pd.DataFrame = self._call_with_timeout(
+            ak.stock_zh_a_daily,
+            symbol=sina_symbol,
+            start_date=start_date,
+            end_date=end_date,
+            adjust="qfq",
+            _output=output,
+        )
 
-        try:
-            df: pd.DataFrame = self._call_with_timeout(
-                ak.stock_zh_a_hist,
-                symbol=symbol,
-                period=period,
-                start_date=start_date,
-                end_date=end_date,
-                adjust="qfq",
-                _output=output,
-            )
-        except Exception as e1:
-            # Fallback: try as index (e.g. 上证指数sh000001, 深证成指sz399001)
-            try:
-                market: str = EXCHANGE_TO_AK.get(exchange, "sh")
-                index_code: str = f"{market}{symbol}"
-                output(f"股票API失败({e1})，尝试按指数查询 {index_code}...")
-                df = self._call_with_timeout(
-                    ak.stock_zh_index_daily,
-                    symbol=index_code,
-                    _output=output,
-                )
-                df["date"] = pd.to_datetime(df["date"])
-                df = df[
-                    (df["date"] >= pd.Timestamp(start))
-                    & (df["date"] <= pd.Timestamp(end))
-                ]
-            except Exception as e2:
-                raise RuntimeError(f"无法获取 {symbol} 的数据: {e2}")
+        # 新浪 API 返回英文列: date, open, high, low, close, volume, amount
+        return self._df_to_bars_sina(df, symbol, exchange, interval)
 
-        return self._df_to_bars(df, symbol, exchange, interval)
+    # ── 期货 (新浪) ─────────────────────────────────────────
 
-    # ── 期货K线 ─────────────────────────────────────────────────
-
-    def _query_futures_bars(
-        self,
-        symbol: str,
-        exchange: Exchange,
-        interval: Interval,
-        start: datetime,
-        end: datetime,
+    def _query_sina_futures(
+        self, symbol: str, exchange: Exchange,
+        interval: Interval, start: datetime, end: datetime,
         output: Callable,
     ) -> list[BarData]:
-        """Query futures daily bars via AKShare."""
+        """通过新浪 futures_zh_daily_sina 获取期货日线。"""
+        output(f"新浪期货 {symbol} {interval.value}...")
 
-        if interval not in (Interval.DAILY, Interval.WEEKLY):
-            output("AKShare 期货数据目前主要支持日线(d)")
-            return []
+        df: pd.DataFrame = self._call_with_timeout(
+            ak.futures_zh_daily_sina,
+            symbol=symbol,
+            _output=output,
+        )
 
-        output(f"正在从AKShare获取期货 {symbol} 的{interval.value}K线数据...")
+        # 标准化列名 (新浪期货返回中文列)
+        rename_map = {
+            "日期": "date", "开盘价": "open", "最高价": "high",
+            "最低价": "low", "收盘价": "close", "成交量": "volume",
+            "成交额": "amount", "持仓量": "hold",
+        }
+        # 只重命名存在的列
+        rename_map = {k: v for k, v in rename_map.items() if k in df.columns}
+        df = df.rename(columns=rename_map)
 
-        try:
-            # Try futures daily API (contract code, e.g. "RB2505")
-            # First try specific contract
-            try:
-                df: pd.DataFrame = ak.futures_zh_daily_sina(symbol=symbol)
-            except Exception:
-                # Fallback: try main continuous contract
-                df = ak.futures_main_sina(symbol=symbol)
+        # 日期过滤 (strip tz: 新浪数据无时区, start/end 来自 DB_TZ)
+        df["date"] = pd.to_datetime(df["date"])
+        df = df[
+            (df["date"] >= pd.Timestamp(start.replace(tzinfo=None)))
+            & (df["date"] <= pd.Timestamp(end.replace(tzinfo=None)))
+        ]
 
-            # Standardize column names
-            df = df.rename(columns={
-                "日期": "date",
-                "开盘价": "open",
-                "最高价": "high",
-                "最低价": "low",
-                "收盘价": "close",
-                "成交量": "volume",
-                "成交额": "amount",
-                "持仓量": "hold",
-                "涨跌幅": "pct_chg",
-            })
+        return self._df_to_bars_sina(df, symbol, exchange, interval)
 
-            # Filter date range
-            df["date"] = pd.to_datetime(df["date"])
-            df = df[
-                (df["date"] >= pd.Timestamp(start))
-                & (df["date"] <= pd.Timestamp(end))
-            ]
+    # ── DataFrame → BarData ─────────────────────────────────
 
-            return self._df_to_bars(df, symbol, exchange, interval)
-
-        except Exception as e:
-            raise RuntimeError(f"期货数据获取失败 {symbol}: {e}")
-
-    # ── DataFrame → BarData ─────────────────────────────────────
-
-    def _df_to_bars(
-        self,
-        df: pd.DataFrame,
-        symbol: str,
-        exchange: Exchange,
-        interval: Interval,
+    def _df_to_bars_sina(
+        self, df: pd.DataFrame, symbol: str,
+        exchange: Exchange, interval: Interval,
     ) -> list[BarData]:
-        """Convert AKShare DataFrame to VeighNa BarData list."""
-
+        """新浪 API DataFrame → BarData 列表。"""
         bars: list[BarData] = []
 
         for _, row in df.iterrows():
-            # Handle date column
-            date_val = row.get("日期") or row.get("date")
+            # 日期转换
+            date_val = row.get("date")
             if date_val is None:
                 continue
-
             if isinstance(date_val, str):
                 dt = datetime.strptime(date_val, "%Y-%m-%d")
             elif isinstance(date_val, date_type):
@@ -296,28 +203,19 @@ class Datafeed(BaseDatafeed):
             else:
                 dt = date_val.to_pydatetime()
 
-            # Normalize field names (AKShare may return Chinese or English columns)
-            open_price: float = float(row.get("开盘") or row.get("open") or 0)
-            high_price: float = float(row.get("最高") or row.get("high") or 0)
-            low_price: float = float(row.get("最低") or row.get("low") or 0)
-            close_price: float = float(row.get("收盘") or row.get("close") or 0)
-            volume: float = float(row.get("成交量") or row.get("volume") or 0)
-            turnover: float = float(row.get("成交额") or row.get("amount") or 0)
-            open_interest: float = float(row.get("持仓量") or row.get("hold") or 0)
-
             bar = BarData(
                 symbol=symbol,
                 exchange=exchange,
                 datetime=dt,
                 interval=interval,
-                volume=volume,
-                turnover=turnover,
-                open_interest=open_interest,
-                open_price=open_price,
-                high_price=high_price,
-                low_price=low_price,
-                close_price=close_price,
-                gateway_name="AK",
+                volume=float(row.get("volume") or 0),
+                turnover=float(row.get("amount") or row.get("成交额") or 0),
+                open_interest=float(row.get("hold") or row.get("持仓量") or 0),
+                open_price=float(row.get("open") or row.get("开盘价") or 0),
+                high_price=float(row.get("high") or row.get("最高价") or 0),
+                low_price=float(row.get("low") or row.get("最低价") or 0),
+                close_price=float(row.get("close") or row.get("收盘价") or 0),
+                gateway_name="SINA",
             )
             bars.append(bar)
 
