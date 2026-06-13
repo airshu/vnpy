@@ -25,6 +25,7 @@ END = datetime.now(tz=DB_TZ)                                # 截止到今天
 
 SYMBOLS: list[str] = [
     # ── A 股蓝筹 ──
+    "300866.SZSE",   # 安克创新
     "600519.SSE",    # 贵州茅台
     "000858.SZSE",   # 五粮液
     "601318.SSE",    # 中国平安
