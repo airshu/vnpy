@@ -24,29 +24,50 @@ DEFAULT_YEARS = 4                                           # 默认下载最近
 END = datetime.now(tz=DB_TZ)                                # 截止到今天
 
 SYMBOLS: list[str] = [
-    # ── A 股蓝筹 ──
+    # ── 白酒消费 ──
     "600519.SSE",    # 贵州茅台
     "000858.SZSE",   # 五粮液
+    "600887.SSE",    # 伊利股份
+
+    # ── 金融 ──
     "601318.SSE",    # 中国平安
     "600036.SSE",    # 招商银行
-    "000333.SZSE",   # 美的集团
+    "601166.SSE",    # 兴业银行
+
+    # ── 新能源 + 制造业 ──
     "300750.SZSE",   # 宁德时代
     "002594.SZSE",   # 比亚迪
-    "601899.SSE",    # 紫金矿业
-    "600276.SSE",    # 恒瑞医药
+    "000333.SZSE",   # 美的集团
     "601012.SSE",    # 隆基绿能
 
-    # ── 商品期货 (主力连续合约, 888 结尾 = 多年历史) ──
-    "RB888.SHFE",   # 螺纹钢主力
-    "HC888.SHFE",   # 热卷主力
-    "I888.DCE",     # 铁矿石主力
-    "J888.DCE",     # 焦炭主力
-    "M888.DCE",     # 豆粕主力
-    "Y888.DCE",     # 豆油主力
+    # ── 资源有色 ──
+    "601899.SSE",    # 紫金矿业
 
-    # ── 金融期货 ──
-    "IF888.CFFEX",  # 沪深300股指主力
-    "IC888.CFFEX",  # 中证500股指主力
+    # ── 医药科技 ──
+    "600276.SSE",    # 恒瑞医药
+    "002415.SZSE",   # 海康威视
+
+    # ── 地产 ──
+    "000002.SZSE",   # 万科A
+
+    # ── AI + 半导体 ──
+    "002230.SZSE",   # 科大讯飞（AI 语音/NLP）
+    "000063.SZSE",   # 中兴通讯（AI 算力/通信）
+    "603501.SSE",    # 韦尔股份（图像传感器/芯片）
+    "688256.SSE",    # 寒武纪（AI 芯片）
+    "688981.SSE",    # 中芯国际（晶圆代工/芯片制造）
+
+    # ── 主流行业 ETF ──
+    "510050.SSE",    # 上证50ETF
+    "510300.SSE",    # 沪深300ETF
+    "510500.SSE",    # 中证500ETF
+    "159915.SZSE",   # 创业板ETF
+    "588000.SSE",    # 科创50ETF
+    "512880.SSE",    # 证券ETF
+    "512010.SSE",    # 医药ETF
+    "159995.SZSE",   # 芯片ETF
+    "512690.SSE",    # 酒ETF
+    "512660.SSE",    # 军工ETF
 ]
 
 # 指数需 tushare (新浪日线不支持), 如需切换:
@@ -73,14 +94,25 @@ def parse_args() -> datetime:
     return END - timedelta(days=years * 365)
 
 
-def download(symbols: list[str], start: datetime) -> tuple[int, list[str]]:
-    """下载指定品种列表的日线, 返回 (成功数, 失败列表)."""
+def download(symbols: list[str], start: datetime, force: bool = False) -> tuple[int, int, int]:
+    """下载品种日线, 返回 (新增, 跳过, 失败列表). 默认增量: 已存在的跳过."""
     df = get_datafeed()
     db = get_database()
-    ok, fail = 0, []
+
+    # 查已有品种
+    existing = {(o.symbol, o.exchange.value) for o in db.get_bar_overview()}
+
+    ok, skip, fail = 0, 0, []
 
     for i, vs in enumerate(symbols, 1):
         sym, ex = extract_vt_symbol(vs)
+        key = (sym, ex.value)
+
+        if not force and key in existing:
+            print(f"\n[{i}/{len(symbols)}] {vs} 已存在, 跳过")
+            skip += 1
+            continue
+
         req = HistoryRequest(
             symbol=sym, exchange=ex,
             start=start, end=END,
@@ -100,7 +132,7 @@ def download(symbols: list[str], start: datetime) -> tuple[int, list[str]]:
 
         if i < len(symbols):
             time.sleep(1.2)
-    return ok, fail
+    return ok, skip, fail
 
 
 def show_db() -> None:
@@ -120,14 +152,13 @@ def main() -> None:
     print(f"数据源: {SETTINGS['datafeed.name']} (新浪免费)")
     print(f"数据库: {SETTINGS['database.name']} ({SETTINGS['database.database']})")
     print(f"时间范围: {start.date()} ~ {END.date()}  ({DEFAULT_YEARS}年)")
-    print(f"品种数: {len(SYMBOLS)}  (A股{sum(1 for s in SYMBOLS if '.SSE' in s or '.SZSE' in s)}支 + "
-          f"期货{sum(1 for s in SYMBOLS if '.SHFE' in s or '.DCE' in s or '.CZCE' in s or '.CFFEX' in s)}支)")
+    print(f"品种数: {len(SYMBOLS)} 支 (A股+ETF)")
     print("=" * 58)
 
-    ok, fail = download(SYMBOLS, start)
+    ok, skip, fail = download(SYMBOLS, start)
 
     print(f"\n{'=' * 58}")
-    print(f"总结果: 成功 {ok}/{len(SYMBOLS)}, 失败 {len(fail)}")
+    print(f"总结果: 新增 {ok}, 跳过 {skip}, 失败 {len(fail)} / 共 {len(SYMBOLS)}")
     if fail:
         print(f"失败品种: {fail}")
     print("=" * 58)
