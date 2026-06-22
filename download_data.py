@@ -24,7 +24,8 @@ DEFAULT_YEARS = 4                                           # 默认下载最近
 END = datetime.now(tz=DB_TZ)                                # 截止到今天
 
 SYMBOLS: list[str] = [
-    # ── 白酒消费 ──
+    # ── A 股蓝筹 ──
+    "300866.SZSE",   # 安克创新
     "600519.SSE",    # 贵州茅台
     "000858.SZSE",   # 五粮液
     "600887.SSE",    # 伊利股份

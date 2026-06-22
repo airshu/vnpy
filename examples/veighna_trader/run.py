@@ -17,7 +17,7 @@ from vnpy_ctp import CtpGateway                        # CTP期货交易接口�
 # from vnpy_rohon import RohonGateway                  # 融航资管系统接口
 # from vnpy_tts import TtsGateway                      # TTS仿真交易接口
 
-# from vnpy_paperaccount import PaperAccountApp        # 模拟交易账户（无需实盘即可模拟下单）
+from vnpy_paperaccount import PaperAccountApp        # 模拟交易账户（无需实盘即可模拟下单）
 from vnpy_ctastrategy import CtaStrategyApp               # CTA趋势跟踪策略引擎
 from vnpy_ctabacktester import CtaBacktesterApp           # CTA策略历史回测模块
 # from vnpy_spreadtrading import SpreadTradingApp         # 价差套利交易模块
@@ -25,7 +25,7 @@ from vnpy_ctabacktester import CtaBacktesterApp           # CTA策略历史回�
 # from vnpy_optionmaster import OptionMasterApp           # 期权策略分析与定价模块
 # from vnpy_portfoliostrategy import PortfolioStrategyApp # 组合级别策略模块（多品种协同）
 # from vnpy_scripttrader import ScriptTraderApp           # 脚本策略交易模块（CLI命令行交易）
-# from vnpy_chartwizard import ChartWizardApp             # K线图表向导组件
+from vnpy_chartwizard import ChartWizardApp             # K线图表向导组件
 # from vnpy_rpcservice import RpcServiceApp               # RPC跨进程服务（远程调用交易接口）
 # from vnpy_excelrtd import ExcelRtdApp                   # Excel RTD实时数据服务
 from vnpy_datamanager import DataManagerApp               # 数据管理模块（导入/导出/查看历史数据）
@@ -58,7 +58,7 @@ def main():
     # main_engine.add_gateway(RohonGateway)             # 加载融航资管接口
     # main_engine.add_gateway(TtsGateway)               # 加载TTS仿真交易接口
 
-    # main_engine.add_app(PaperAccountApp)             # 加载模拟交易账户
+    main_engine.add_app(PaperAccountApp)             # 加载模拟交易账户
     main_engine.add_app(CtaStrategyApp)                  # 加载CTA策略引擎
     main_engine.add_app(CtaBacktesterApp)                # 加载CTA回测模块
     # main_engine.add_app(SpreadTradingApp)              # 加载价差套利模块
@@ -66,7 +66,7 @@ def main():
     # main_engine.add_app(OptionMasterApp)               # 加载期权策略模块
     # main_engine.add_app(PortfolioStrategyApp)          # 加载组合策略模块
     # main_engine.add_app(ScriptTraderApp)               # 加载脚本交易模块
-    # main_engine.add_app(ChartWizardApp)                # 加载K线图表组件
+    main_engine.add_app(ChartWizardApp)                # 加载K线图表组件
     # main_engine.add_app(RpcServiceApp)                 # 加载RPC服务模块
     # main_engine.add_app(ExcelRtdApp)                   # 加载Excel RTD服务
     main_engine.add_app(DataManagerApp)                  # 加载数据管理模块

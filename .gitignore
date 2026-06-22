@@ -44,3 +44,4 @@ lab/
 /.mypy_cache
 
 .venv/
+venv/
