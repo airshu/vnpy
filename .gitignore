@@ -21,8 +21,8 @@ dist
 *.local
 
 # VeighNa
-.vntrader
-database.db
+.vntrader/*
+!.vntrader/database.db
 
 # Visual Studio intermediate files
 *.exp
