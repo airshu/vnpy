@@ -45,3 +45,4 @@ lab/
 
 .venv/
 venv/
+.codebuddy/
