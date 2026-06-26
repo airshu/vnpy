@@ -122,7 +122,7 @@ def step3_backtest(base):
 
         h60 = float(max(hi[idx - 59:idx + 1]))
         if (c - h60) / h60 * 100 < -15: continue
-        if (c / cl[idx - 20] - 1) * 100 < 5: continue
+        if (c / cl[idx - 20] - 1) * 100 < 15: continue
 
         av5 = np.mean(vo[idx - 4:idx + 1])
         av20 = np.mean(vo[idx - 19:idx + 1])

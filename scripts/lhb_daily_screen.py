@@ -9,7 +9,7 @@
 5. 换手率 3-10%
 6. 流通市值 > 30亿
 7. 净买额 > 3000万
-8. 20日涨幅 > 5%
+8. 20日涨幅 > 15%
 9. 量比 1.2-3.0
 10. 5日涨幅 < 15%（排除短期暴涨出货）
 (涨跌幅不限，K线趋势自会筛选)
@@ -124,6 +124,7 @@ def main():
     # === 基础过滤 ===
     mask = (
         ~df["原因"].str.contains("ST|连续三个|异常波动", na=False) &
+        ~df["名称"].str.contains("ST", na=False) &
         (df["换手率"] >= 3) & (df["换手率"] <= 10) &
         (df["流通市值"] > 30) &
         (df["净买额"] > 3000)
@@ -157,7 +158,7 @@ def main():
             stats["rsi"] += 1; continue
         if feat["dist_high"] < -15:
             stats["high"] += 1; continue
-        if feat["ret20"] < 5:
+        if feat["ret20"] < 15:
             stats["ret20"] += 1; continue
         if feat["vol_ratio"] < 1.2 or feat["vol_ratio"] > 3.0:
             stats["vol"] += 1; continue
