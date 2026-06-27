@@ -1,6 +1,9 @@
 """
 龙虎榜每日筛选 + 飞书通知
+
 用法: python scripts/lhb_daily_alert.py
+依赖: akshare, vnpy 本地数据库, 飞书 webhook
+输出: 筛选符合条件的龙虎榜股票并推送到飞书
 """
 import akshare as ak
 import pandas as pd

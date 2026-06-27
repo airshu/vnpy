@@ -1,4 +1,9 @@
-"""同步数据库已有品种的最新数据"""
+"""同步数据库已有品种的最新数据
+
+用法: python scripts/sync_data.py
+依赖: tushare
+输出: 更新 database.db 中已有品种到最新交易日
+"""
 import sqlite3
 import pandas as pd
 from datetime import datetime, timedelta

@@ -1,4 +1,9 @@
-"""海龟交易策略回测脚本"""
+"""海龟交易策略 · 单品种回测
+
+用法: python scripts/run_backtest.py
+依赖: vnpy_ctastrategy, vnpy_ctabacktester
+输出: 终端打印回测报告
+"""
 from datetime import datetime
 from vnpy.trader.constant import Interval
 from vnpy_ctastrategy.backtesting import BacktestingEngine

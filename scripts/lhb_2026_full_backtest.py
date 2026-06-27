@@ -1,22 +1,20 @@
 """
-龙虎榜趋势策略 · 完整回测 (2018-01 ~ 2026-06)
+龙虎榜策略 · 2026年优化版 全量历史回测
 
-条件:
+条件 (2026年最优参数):
 1.  非ST / 非异常波动
-2.  换手率 3 ~ 10%
-3.  流通市值 > 30亿
-4.  净买额 > 3000万
-5.  非一字板 / 非T字板
-6.  MA20偏离 1.02 ~ 1.18 (趋势确认但不超买)
+2.  非一字板 / 非T字板
+3.  换手率 3 ~ 5%
+4.  流通市值 > 20亿
+5.  净买额 > 5000万
+6.  MA20偏离 1.02 ~ 1.15
 7.  RSI(14) 55 ~ 85
-8.  距60日高 > -15%
-9.  20日涨幅 > 15%
-10. 量比(5/20) 1.2 ~ 3.0
-11. 5日涨幅 < 15%
+8.  20日涨幅 > 12%
+9.  5日涨幅 < 25%
 
 买入: 次日开盘价  /  卖出: 第三日开盘价 (持1天)
 
-v1 → v2: MA20 加 1.18 上界, 删连板条件(冗余), +36.5% → +83.5%
+2026年仅11笔 +50.3% 胜91%，全量验证参数泛化能力
 """
 import akshare as ak
 import pandas as pd
@@ -57,9 +55,9 @@ mask = (
     ~df_all["原因"].str.contains("ST|连续三个|异常波动", na=False)
     & ~df_all["名称"].str.contains("ST", na=False)
     & (df_all["换手"] >= 3)
-    & (df_all["换手"] <= 10)
-    & (df_all["流通市"] > 30)
-    & (df_all["净买"] > 3000)
+    & (df_all["换手"] <= 5)
+    & (df_all["流通市"] > 20)
+    & (df_all["净买"] > 5000)
 )
 base = df_all[mask].copy()
 print(f"\n  基础筛选: {len(base)} 笔 ({base['代码'].nunique()} 只股票)")
@@ -107,7 +105,7 @@ for _, row in base.iterrows():
     # MA20: 站稳均线但不偏离太远
     ma20 = np.mean(closes[idx - 19 : idx + 1])
     ma20_ratio = c / ma20
-    if ma20_ratio < 1.02 or ma20_ratio > 1.18:
+    if ma20_ratio < 1.02 or ma20_ratio > 1.15:
         continue
 
     # RSI(14)
@@ -120,27 +118,15 @@ for _, row in base.iterrows():
     if rsi < 55 or rsi > 85:
         continue
 
-    # 距60日高
-    h60 = float(max(highs[idx - 59 : idx + 1]))
-    if (c - h60) / h60 * 100 < -15:
-        continue
-
     # 20日涨幅
     ret20 = (c / closes[idx - 20] - 1) * 100
-    if ret20 < 15:
-        continue
-
-    # 量比
-    avg5 = np.mean(vols[idx - 4 : idx + 1])
-    avg20 = np.mean(vols[idx - 19 : idx + 1])
-    vol_ratio = avg5 / avg20
-    if vol_ratio < 1.2 or vol_ratio > 3.0:
+    if ret20 < 12:
         continue
 
     # 5日涨幅
     if idx >= 5:
         ret5 = (c / closes[idx - 5] - 1) * 100
-        if ret5 >= 15:
+        if ret5 >= 25:
             continue
 
     stats_pass += 1
@@ -214,7 +200,7 @@ if len(df_out) > 0:
     # 按日期排序
     df_out = df_out.sort_values("上榜日").reset_index(drop=True)
     df_out = df_out.drop_duplicates(subset=["上榜日", "代码"], keep="first").reset_index(drop=True)
-    df_out.to_csv("scripts/lhb_2018_2026_trades.csv", index=False)
+    df_out.to_csv("scripts/lhb_2026_full_trades.csv", index=False)
 
     total_pnl = df_out["盈亏%"].sum()
     win_count = (df_out["盈亏%"] > 0).sum()
@@ -249,4 +235,4 @@ if len(df_out) > 0:
         m_total = mdf["盈亏%"].sum()
         print(f"    {m}: {len(mdf):>2}笔  {m_total:>+6.1f}%  {''.join(['✅' if x>0 else '❌' for x in mdf['盈亏%']])}")
 
-    print(f"\n  已保存: scripts/lhb_2018_2026_trades.csv")
+    print(f"\n  已保存: scripts/lhb_2026_full_trades.csv")

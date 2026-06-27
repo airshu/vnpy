@@ -1,0 +1,31 @@
+name: 龙虎榜每日筛选推送
+
+on:
+  schedule:
+    - cron: "0 10 * * 1-5"         # 北京时间 18:00 (UTC+8), 仅工作日
+  workflow_dispatch:                  # 支持手动触发
+
+jobs:
+  lhb_daily:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          pip install akshare pandas numpy
+
+      - name: 初始化数据库
+        run: |
+          echo '{}' > vt_setting.json
+
+      - name: 运行筛选推送
+        run: python scripts/lhb_daily_alert.py

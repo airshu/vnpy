@@ -1,4 +1,9 @@
-"""下载多个期货品种的日线数据"""
+"""下载多个期货品种的日线数据
+
+用法: python scripts/download_futures.py
+依赖: tushare (需有 fut_daily 权限)
+输出: 直接写入 database.db
+"""
 from datetime import datetime
 from vnpy.trader.datafeed import get_datafeed
 from vnpy.trader.database import get_database
