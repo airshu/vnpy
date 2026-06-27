@@ -95,13 +95,15 @@ class Datafeed(BaseDatafeed):
             start = end - timedelta(days=MAX_DAYS)
 
         try:
-            if exchange in (Exchange.SSE, Exchange.SZSE):
-                bars = self._query_sina_stock(symbol, exchange, interval, start, end, output)
+            if self._is_etf(symbol, exchange):
+                bars = self._query_sina_etf(symbol, exchange, interval, start, end, output)
             elif exchange in (
                 Exchange.CFFEX, Exchange.SHFE, Exchange.DCE,
                 Exchange.CZCE, Exchange.INE, Exchange.GFEX,
             ):
                 bars = self._query_sina_futures(symbol, exchange, interval, start, end, output)
+            elif exchange in (Exchange.SSE, Exchange.SZSE):
+                bars = self._query_sina_stock(symbol, exchange, interval, start, end, output)
             else:
                 bars = self._query_sina_stock(symbol, exchange, interval, start, end, output)
         except Exception as e:
@@ -145,6 +147,43 @@ class Datafeed(BaseDatafeed):
         )
 
         # 新浪 API 返回英文列: date, open, high, low, close, volume, amount
+        return self._df_to_bars_sina(df, symbol, exchange, interval)
+
+    # ── ETF (新浪) ───────────────────────────────────────────
+
+    @staticmethod
+    def _is_etf(symbol: str, exchange: Exchange) -> bool:
+        """判断是否为 ETF 代码（上交所 5 开头 / 深交所 15-16 开头）。"""
+        if exchange == Exchange.SSE and symbol.startswith("5"):
+            return True
+        if exchange == Exchange.SZSE and len(symbol) >= 2 and symbol[:2] in ("15", "16"):
+            return True
+        return False
+
+    def _query_sina_etf(
+        self, symbol: str, exchange: Exchange,
+        interval: Interval, start: datetime, end: datetime,
+        output: Callable,
+    ) -> list[BarData]:
+        """通过新浪 fund_etf_hist_sina 获取 ETF 日线。"""
+        prefix = EXCHANGE_SINA_PREFIX.get(exchange, "sh")
+        sina_symbol = f"{prefix}{symbol.lower()}"
+
+        output(f"新浪ETF {sina_symbol} {interval.value}...")
+
+        df: pd.DataFrame = self._call_with_timeout(
+            ak.fund_etf_hist_sina,
+            symbol=sina_symbol,
+            _output=output,
+        )
+
+        # 按时间范围过滤
+        df["date"] = pd.to_datetime(df["date"])
+        df = df[
+            (df["date"] >= pd.Timestamp(start.replace(tzinfo=None)))
+            & (df["date"] <= pd.Timestamp(end.replace(tzinfo=None)))
+        ]
+
         return self._df_to_bars_sina(df, symbol, exchange, interval)
 
     # ── 期货 (新浪) ─────────────────────────────────────────

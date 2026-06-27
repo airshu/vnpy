@@ -24,6 +24,9 @@ dist
 .vntrader
 database.db
 
+# VeighNa
+.vntrader/*
+
 # Visual Studio intermediate files
 *.exp
 *.iobj
@@ -45,3 +48,10 @@ lab/
 
 .venv/
 venv/
+# Alpha
+lab/
+/.mypy_cache
+
+.venv/
+venv/
+.codebuddy/
