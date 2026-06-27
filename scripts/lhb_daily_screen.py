@@ -2,18 +2,18 @@
 龙虎榜趋势股筛选 (最近3个月)
 
 条件:
-1. 价格 > MA20 (ratio>1.02)
+1. 价格 > MA20 (1.02 ~ 1.18)
 2. 距60日高 < 15%
 3. RSI 55-85
-4. 首板或二板
-5. 换手率 3-10%
-6. 流通市值 > 30亿
-7. 净买额 > 3000万
-8. 20日涨幅 > 15%
-9. 量比 1.2-3.0
-10. 5日涨幅 < 15%（排除短期暴涨出货）
+4. 换手率 3-10%
+5. 流通市值 > 30亿
+6. 净买额 > 3000万
+7. 20日涨幅 > 15%
+8. 量比 1.2-3.0
+9. 5日涨幅 < 15%
 (涨跌幅不限，K线趋势自会筛选)
-12. 净买额 > 3000万（真金白银，排除游资一日游）
+
+v2: MA20上界1.18, 删连板条件(冗余)
 """
 import akshare as ak
 import pandas as pd
@@ -136,7 +136,7 @@ def main():
     db = get_database()
     results = []
     stats = {"total": 0, "nodata": 0, "ma20": 0, "rsi": 0, "high": 0,
-             "ret5": 0, "ret20": 0, "vol": 0, "up_days": 0, "board": 0, "pass": 0}
+             "ret5": 0, "ret20": 0, "vol": 0, "board": 0, "pass": 0}
 
     for _, row in base.iterrows():
         stats["total"] += 1
@@ -152,7 +152,7 @@ def main():
         # 逐一检查
         if feat["board_type"] != "实体涨停":
             stats["board"] += 1; continue
-        if feat["ma20_ratio"] < 1.02:
+        if feat["ma20_ratio"] < 1.02 or feat["ma20_ratio"] > 1.18:
             stats["ma20"] += 1; continue
         if feat["rsi"] < 55 or feat["rsi"] > 85:
             stats["rsi"] += 1; continue
@@ -164,8 +164,6 @@ def main():
             stats["vol"] += 1; continue
         if feat["ret5"] >= 15:
             stats["ret5"] += 1; continue
-        if feat["up_days"] > 1:
-            stats["up_days"] += 1; continue
 
         stats["pass"] += 1
         results.append({
@@ -193,7 +191,6 @@ def main():
     print(f"    距新高<-15%: {stats['high']}")
     print(f"    20日涨<5%:   {stats['ret20']}")
     print(f"    量比超标:    {stats['vol']}")
-    print(f"    连板>1:      {stats['up_days']}")
     print(f"    ✅ 通过:     {stats['pass']}")
 
     if results:

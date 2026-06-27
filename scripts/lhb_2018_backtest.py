@@ -13,11 +13,10 @@
 9.  20日涨幅 > 15%
 10. 量比(5/20) 1.2 ~ 3.0
 11. 5日涨幅 < 15%
-12. 连板天数 ≤ 1
 
 买入: 次日开盘价  /  卖出: 第三日开盘价 (持1天)
 
-v1 → v2 优化: MA20 加 1.18 上界, 总盈亏 +36.5% → +84.8%
+v1 → v2: MA20 加 1.18 上界, 删连板条件(冗余), +36.5% → +83.5%
 """
 import akshare as ak
 import pandas as pd
@@ -144,23 +143,13 @@ for _, row in base.iterrows():
         if ret5 >= 15:
             continue
 
-    # 连板天数
-    up_days = 0
-    for i in range(idx, 0, -1):
-        if closes[i] > closes[i - 1] * 1.095:
-            up_days += 1
-        else:
-            break
-    if up_days > 1:
-        continue
-
     stats_pass += 1
 
-    # 回测交易
+    # 回测交易: 拉取上榜日前后 30 天数据 (覆盖长假)
     b2 = db.load_bar_data(
         sym, ex, Interval.DAILY,
         start=(d - timedelta(days=1)).strftime("%Y-%m-%d"),
-        end=(d + timedelta(days=5)).strftime("%Y-%m-%d"),
+        end=(d + timedelta(days=30)).strftime("%Y-%m-%d"),
     )
     if b2 is None or len(b2) < 3:
         continue
@@ -183,6 +172,20 @@ for _, row in base.iterrows():
     sell_price = sb.open_price
     pnl_pct = (sell_price - buy_price) / buy_price * 100
 
+    # 计算买入后 3 天 / 10 天涨幅
+    nb_idx = b2.index(nb) if nb in b2 else -1
+    ret_3d = None
+    ret_10d = None
+    if nb_idx >= 0:
+        # 第3个交易日 (买入日算 day 0, 往后数 3 根 bar)
+        idx_3 = nb_idx + 3
+        if idx_3 < len(b2):
+            ret_3d = round((b2[idx_3].close_price - buy_price) / buy_price * 100, 2)
+        # 第10个交易日
+        idx_10 = nb_idx + 10
+        if idx_10 < len(b2):
+            ret_10d = round((b2[idx_10].close_price - buy_price) / buy_price * 100, 2)
+
     # 上榜日涨跌幅
     day_gain = (row["换手"] / row["换手"]) * row.get("涨跌幅", 0) if hasattr(row, "涨跌幅") else 0
 
@@ -196,6 +199,8 @@ for _, row in base.iterrows():
             "卖日": sb.datetime.strftime("%Y-%m-%d"),
             "卖价": round(sell_price, 2),
             "盈亏%": round(pnl_pct, 2),
+            "3日涨%": ret_3d,
+            "10日涨%": ret_10d,
             "净买万": round(row["净买"], 0),
             "换手%": round(row["换手"], 1),
             "20日涨%": round(ret20, 1),
