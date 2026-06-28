@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+# 将项目根目录加入路径，确保加载项目内的策略
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
 from vnpy.event import EventEngine
 
 from vnpy.trader.engine import MainEngine
