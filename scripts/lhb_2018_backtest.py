@@ -56,6 +56,7 @@ df_all["上榜日"] = pd.to_datetime(df_all["上榜日"])
 mask = (
     ~df_all["原因"].str.contains("ST|连续三个|异常波动", na=False)
     & ~df_all["名称"].str.contains("ST", na=False)
+    & ~df_all["代码"].astype(str).str.startswith("688")
     & (df_all["换手"] >= 3)
     & (df_all["换手"] <= 10)
     & (df_all["流通市"] > 30)
